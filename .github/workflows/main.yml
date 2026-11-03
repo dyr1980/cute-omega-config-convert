@@ -35,19 +35,18 @@ jobs:
         run: python src/main.py --dns
 
       - name: Commit refreshed fallback config
-        # assets/final_config.json 是"所有来源都拉不到"时的最后兜底，必须随每次成功运行刷新，
-        # 否则会像 2026-04 那样陈旧数月（连 remoteConfig.url 都可能指向已失效的地址）。
+        # 这一步是尝试把生成的兜底配置存回你当前的代码库
         run: |
           git add assets/final_config.json
           git diff --staged --quiet || git commit -m "chore: 刷新回退配置（最后一次成功产物）"
-          # main 受规则集保护（要求 PR + CodeQL 结果），直推必被拒；这里降级为 warning，
-          # 不能让回退配置的刷新挡住后面真正要发布的 Pages 产物
-          git push origin HEAD:main || echo "::warning::main 受规则集保护，回退配置未能推送（不影响 Pages 发布）"
+          # 你的主分支是 main
+          git push origin HEAD:main || echo "::warning::main 受保护或无法推送，未能更新回退配置（不影响 Pages 发布）"
 
       - name: Checkout Pages repository
         uses: actions/checkout@v5
         with:
-          repository: cute-omega/cute-omega.github.io
+          # 👇 修改点 1：改成了你自己的 Pages 仓库
+          repository: dyr1980/cute-omega-cute-omega.github.io
           token: ${{ secrets.PAT }}
           path: pages-repo
 
@@ -57,8 +56,9 @@ jobs:
           cp assets/final_config.json pages-repo/other-assets/ds-config.json
           cp assets/final_config_dns.json pages-repo/other-assets/ds-config-dns.json
           cd pages-repo
+          # 👇 修改点 2：确保拉取的是你仓库的 master 分支
           git checkout master || git checkout -b master
           git add other-assets/ds-config.json other-assets/ds-config-dns.json || true
-          git commit -m "Update ds-config.json / ds-config-dns.json to new location for permanent migration solution" || echo "No changes to commit"
-          git pull origin master --no-edit
+          git commit -m "Update ds-config configs" || echo "No changes to commit"
+          git pull origin master --no-edit || true
           git push origin master
