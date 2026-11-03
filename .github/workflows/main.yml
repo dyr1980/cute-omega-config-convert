@@ -45,8 +45,8 @@ jobs:
       - name: Checkout Pages repository
         uses: actions/checkout@v5
         with:
-          # 👇 修改点 1：改成了你自己的 Pages 仓库
-          repository: dyr1980/cute-omega-cute-omega.github.io
+          # 👇 修改点 1：自动识别当前的仓库所有者（就是你 dyr1980）
+          repository: ${{ github.repository_owner }}/cute-omega-cute-omega.github.io
           token: ${{ secrets.PAT }}
           path: pages-repo
 
