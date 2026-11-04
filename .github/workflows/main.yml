@@ -5,7 +5,7 @@ permissions:
 on:
   schedule:
     # - cron: "0,30 * * * *" # 在每小时的00分和30分运行
-    - cron: "0 0/8 * * *" # 每8小时运行
+    - cron: "0 0/8 * * *" # 每8小时运行（UTC时间 0点、8点、16点）
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -35,30 +35,36 @@ jobs:
         run: python src/main.py --dns
 
       - name: Commit refreshed fallback config
-        # 这一步是尝试把生成的兜底配置存回你当前的代码库
+        # 把生成的兜底配置存回当前代码库
         run: |
           git add assets/final_config.json
           git diff --staged --quiet || git commit -m "chore: 刷新回退配置（最后一次成功产物）"
-          # 你的主分支是 main
           git push origin HEAD:main || echo "::warning::main 受保护或无法推送，未能更新回退配置（不影响 Pages 发布）"
 
       - name: Checkout Pages repository
         uses: actions/checkout@v5
         with:
-          # 👇 修改点 1：自动识别当前的仓库所有者（就是你 dyr1980）
           repository: ${{ github.repository_owner }}/cute-omega-cute-omega.github.io
           token: ${{ secrets.PAT }}
           path: pages-repo
 
       - name: Copy and commit to Pages repo
         run: |
+          # 1. 准备文件夹和复制文件
           mkdir -p pages-repo/other-assets
           cp assets/final_config.json pages-repo/other-assets/ds-config.json
           cp assets/final_config_dns.json pages-repo/other-assets/ds-config-dns.json
+          
+          # 2. 进入 Pages 目录并切换分支
           cd pages-repo
-          # 👇 修改点 2：确保拉取的是你仓库的 master 分支
           git checkout master || git checkout -b master
-          git add other-assets/ds-config.json other-assets/ds-config-dns.json || true
-          git commit -m "Update ds-config configs" || echo "No changes to commit"
-          git pull origin master --no-edit || true
+          
+          # 3. 【关键修复】先拉取最新代码，确保不和远端冲突
+          git pull origin master --no-edit
+          
+          # 4. 暂存变更并提交
+          git add other-assets/ds-config.json other-assets/ds-config-dns.json
+          git diff --staged --quiet || git commit -m "Update ds-config configs"
+          
+          # 5. 推送回 Pages 仓库（如果失败会直接报错，方便排查）
           git push origin master
