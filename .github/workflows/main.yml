@@ -1,4 +1,5 @@
 name: Deploy to GitHub Pages
+
 permissions:
   contents: write
 
@@ -36,15 +37,31 @@ jobs:
 
       - name: Commit refreshed fallback config
         # 把生成的兜底配置存回当前代码库
+        # 内容无变化时不提交；仅在距上次提交满 45 天时补一次空提交保活，
+        # 避免仓库连续 60 天无活动导致 schedule 被 GitHub 自动禁用
         run: |
           git add assets/final_config.json
-          git diff --staged --quiet || git commit -m "chore: 刷新回退配置（最后一次成功产物）"
+          if git diff --staged --quiet; then
+            LAST=$(git log -1 --format=%ct)
+            NOW=$(date +%s)
+            DAYS=$(( (NOW - LAST) / 86400 ))
+            if [ "$DAYS" -ge 45 ]; then
+              echo "配置无变化，但距上次提交已 $DAYS 天，提交空 commit 保活"
+              git commit --allow-empty -m "chore: keepalive (no activity for $DAYS days)"
+            else
+              echo "配置无变化，距上次提交 $DAYS 天，无需保活，跳过提交"
+              exit 0
+            fi
+          else
+            git commit -m "chore: 刷新回退配置（最后一次成功产物）"
+          fi
+          git pull --rebase origin main || true
           git push origin HEAD:main || echo "::warning::main 受保护或无法推送，未能更新回退配置（不影响 Pages 发布）"
 
       - name: Checkout Pages repository
         uses: actions/checkout@v5
         with:
-          repository: ${{ github.repository_owner }}/cute-omega-cute-omega.github.io
+          repository: ${{ github.repository_owner }} /cute-omega-cute-omega .github.io
           token: ${{ secrets.PAT }}
           path: pages-repo
 
@@ -54,17 +71,17 @@ jobs:
           mkdir -p pages-repo/other-assets
           cp assets/final_config.json pages-repo/other-assets/ds-config.json
           cp assets/final_config_dns.json pages-repo/other-assets/ds-config-dns.json
-          
+
           # 2. 进入 Pages 目录并切换分支
           cd pages-repo
           git checkout master || git checkout -b master
-          
+
           # 3. 【关键修复】先拉取最新代码，确保不和远端冲突
           git pull origin master --no-edit
-          
+
           # 4. 暂存变更并提交
           git add other-assets/ds-config.json other-assets/ds-config-dns.json
           git diff --staged --quiet || git commit -m "Update ds-config configs"
-          
+
           # 5. 推送回 Pages 仓库（如果失败会直接报错，方便排查）
           git push origin master
