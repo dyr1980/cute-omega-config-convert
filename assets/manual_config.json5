@@ -2,7 +2,7 @@
   app: {
     metaInfo: {
       updateLog: "周期性自动更新",
-      id: "io.github.cute-omega",
+      id: "io.github.dyr1980",
     },
   },
   server: {
