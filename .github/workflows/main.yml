@@ -37,25 +37,9 @@ jobs:
 
       - name: Commit refreshed fallback config
         # 把生成的兜底配置存回当前代码库
-        # 内容无变化时不提交；仅在距上次提交满 45 天时补一次空提交保活，
-        # 避免仓库连续 60 天无活动导致 schedule 被 GitHub 自动禁用
         run: |
           git add assets/final_config.json
-          if git diff --staged --quiet; then
-            LAST=$(git log -1 --format=%ct)
-            NOW=$(date +%s)
-            DAYS=$(( (NOW - LAST) / 86400 ))
-            if [ "$DAYS" -ge 45 ]; then
-              echo "配置无变化，但距上次提交已 $DAYS 天，提交空 commit 保活"
-              git commit --allow-empty -m "chore: keepalive (no activity for $DAYS days)"
-            else
-              echo "配置无变化，距上次提交 $DAYS 天，无需保活，跳过提交"
-              exit 0
-            fi
-          else
-            git commit -m "chore: 刷新回退配置（最后一次成功产物）"
-          fi
-          git pull --rebase origin main || true
+          git diff --staged --quiet || git commit -m "chore: 刷新回退配置（最后一次成功产物）"
           git push origin HEAD:main || echo "::warning::main 受保护或无法推送，未能更新回退配置（不影响 Pages 发布）"
 
       - name: Checkout Pages repository
@@ -85,3 +69,31 @@ jobs:
 
           # 5. 推送回 Pages 仓库（如果失败会直接报错，方便排查）
           git push origin master
+
+  # ===== 新增：独立保活 job，不影响上面的发布流程 =====
+  keepalive:
+    name: Keepalive
+    runs-on: ubuntu-latest
+    # 只在定时触发时检查；手动触发不会跑，不打扰你
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Add empty commit if stale
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          LAST=$(git log -1 --format=%ct)
+          NOW=$(date +%s)
+          DAYS=$(( (NOW - LAST) / 86400 ))
+          echo "距上次提交 $DAYS 天"
+          if [ "$DAYS" -ge 45 ]; then
+            git commit --allow-empty -m "chore: keepalive (no activity for $DAYS days)"
+            git push
+            echo "已提交保活 commit"
+          else
+            echo "未到 45 天，跳过"
+          fi
