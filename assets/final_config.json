@@ -317,9 +317,6 @@
       "my.urbandictionary.com": {
         "5.161.34.136": true,
       },
-      "store.steampowered.com": {
-        "23.15.142.182": true,
-      },
       "web-static.archive.org": {
         "207.241.237.2": true,
       },
@@ -1183,6 +1180,7 @@
       },
       "^.*(wikipedia|wikimedia|wikinews|wiktionary|wikiversity|wikidata|wikiquote|wikivoyage|wikifunctions|wikibooks).org$": {
         ".*": {
+          unVerifySsl: true,
           sni: "mediawiki.org",
         },
       },
@@ -1394,11 +1392,6 @@
         },
       },
       "my.urbandictionary.com": {
-        ".*": {
-          sni: "none",
-        },
-      },
-      "store.steampowered.com": {
         ".*": {
           sni: "none",
         },
@@ -2755,7 +2748,11 @@
       },
       "*w.wiki": {
         ".*": {
+<<<<<<< HEAD
           verifyHost: "mediawiki.org",
+=======
+          unVerifySsl: true,
+>>>>>>> b394935 (更新配置)
           sni: "mediawiki.org",
         },
       },
@@ -3397,8 +3394,13 @@
     },
     metaInfo: {
       updateLog: "周期性自动更新",
+<<<<<<< HEAD
       version: 202611212107,
       id: "io.github.dyr1980",
+=======
+      version: 202611121322,
+      id: "io.github.cute-omega",
+>>>>>>> b394935 (更新配置)
     },
   },
 }

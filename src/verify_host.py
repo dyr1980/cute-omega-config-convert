@@ -339,3 +339,9 @@ async def probe_and_fill_verify_host(
             f"verifyHost 探测：{failed}/{probed} 条未能确认（不可达或证书异常），保持原样"
         )
     return probed, added, ok, failed
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> b394935 (更新配置)
