@@ -1,4 +1,5 @@
 name: Deploy to GitHub Pages
+
 permissions:
   contents: write
 
@@ -32,6 +33,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run config converting script
+        # 🚨 核心修改点：加上了 --probe，同步原作者最新证书实测功能
         run: python src/main.py --dns --probe
 
       - name: Commit refreshed fallback config
@@ -47,7 +49,8 @@ jobs:
       - name: Checkout Pages repository
         uses: actions/checkout@v5
         with:
-          repository: cute-omega/cute-omega.github.io
+          # 🚨 核心修改点：保留了你自己的 Pages 仓库，千万别动！
+          repository: dyr1980/cute-omega-cute-omega.github.io
           token: ${{ secrets.PAT }}
           path: pages-repo
 
@@ -58,7 +61,40 @@ jobs:
           cp assets/final_config_dns.json pages-repo/other-assets/ds-config-dns.json
           cd pages-repo
           git checkout master || git checkout -b master
-          git add other-assets/ds-config.json other-assets/ds-config-dns.json || true
-          git commit -m "Update ds-config.json / ds-config-dns.json to new location for permanent migration solution" || echo "No changes to commit"
+          git add other-assets/ds-config.json other-assets/ds-config-dns.json
+          # 有变化才提交，没变化就跳过（保留你的优雅判断，后面 pull/push 照常执行保持同步）
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update ds-config.json / ds-config-dns.json"
+          fi
           git pull origin master --no-edit
           git push origin master
+
+  # ===== 保活 job：防止仓库连续 60 天无活动被禁用 schedule =====
+  # 🚨 核心修改点：保留了你独有的防休眠机制，原作者都没这待遇！
+  keepalive:
+    name: Keepalive
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Add empty commit if stale
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          LAST=$(git log -1 --format=%ct)
+          NOW=$(date +%s)
+          DAYS=$(( (NOW - LAST) / 86400 ))
+          echo "距上次提交 $DAYS 天"
+          if [ "$DAYS" -ge 45 ]; then
+            git commit --allow-empty -m "chore: keepalive (no activity for $DAYS days)"
+            git push
+            echo "已提交保活 commit"
+          else
+            echo "未到 45 天，跳过"
+          fi
