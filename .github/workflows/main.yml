@@ -33,7 +33,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run config converting script
-        run: python src/main.py --dns
+        # 🚨 核心修改点：加上了 --probe，同步原作者最新证书实测功能
+        run: python src/main.py --dns --probe
 
       - name: Commit refreshed fallback config
         # assets/final_config.json 是"所有来源都拉不到"时的最后兜底，必须随每次成功运行刷新，
@@ -48,6 +49,7 @@ jobs:
       - name: Checkout Pages repository
         uses: actions/checkout@v5
         with:
+          # 🚨 核心修改点：保留了你自己的 Pages 仓库，千万别动！
           repository: dyr1980/cute-omega-cute-omega.github.io
           token: ${{ secrets.PAT }}
           path: pages-repo
@@ -60,7 +62,7 @@ jobs:
           cd pages-repo
           git checkout master || git checkout -b master
           git add other-assets/ds-config.json other-assets/ds-config-dns.json
-          # 有变化才提交，没变化就跳过（后面 pull/push 照常执行，保持与远端同步）
+          # 有变化才提交，没变化就跳过（保留你的优雅判断，后面 pull/push 照常执行保持同步）
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
@@ -70,6 +72,7 @@ jobs:
           git push origin master
 
   # ===== 保活 job：防止仓库连续 60 天无活动被禁用 schedule =====
+  # 🚨 核心修改点：保留了你独有的防休眠机制，原作者都没这待遇！
   keepalive:
     name: Keepalive
     runs-on: ubuntu-latest
